@@ -1,3 +1,23 @@
+## Why is this staying a fork?
+
+ - It's a unneccessary breaking change (changing all the config names) and I don't want to pollute the code with `: ${fkey_child1:=FFF_KEY_CHILD1}` for all 64 original settings
+ - I don't feel it's going to deviate far enough to justify detachment
+
+## Why not just. . . leave the config names alone?
+
+ - I use [Auto Shift](https://beta.docs.qmk.fm/using-qmk/software-features/feature_auto_shift), and I hated trying to type them. I even have a backup shift key to type all caps and it was bad because I had to switch between hitting that and the underscores
+ - If I was going to make a fork to make a config file and fix a few bugs, why would I rewrite the config with garbage names and *then* make a workaround so I don't have to type them?
+ - At the moment there's not a ton those using the main branch are missing out on
+
+## What's changed?
+
+ - Added a config file (`~/.fff`) and removed globals
+ - Made `f_color1` have priority over `di` from `LS_COLORS`
+ - Added `f_visual_default` to allow prioritizing `EDITOR` over `VISUAL`
+ - Added `f_print_actions` to toggle printing file operations so you can look back at them after exiting
+ - Added `f_trash_confirm` to allow not asking for confirmation when trashing files (I don't know why this wasn't added when the default option isn't to permanently delete)
+ - Added `fkey_img_preview_max` to preview images at maximum size
+
 # fff (*Fucking Fast File-Manager*)
 
 <a href="https://asciinema.org/a/qvNlrFrGB3xKZXb6GkremjZNp" target="_blank"><img src="https://asciinema.org/a/qvNlrFrGB3xKZXb6GkremjZNp.svg" alt="img" height="210px" align="right"/></a>
@@ -27,10 +47,7 @@ A simple file manager written in `bash`.
 <!-- vim-markdown-toc GFM -->
 
 * [Dependencies](#dependencies)
-* [Installation](#installation)
-    * [Distros](#distros)
-    * [Manual](#manual)
-    * [CD on Exit](#cd-on-exit)
+* [(Un)installation](#uninstallation)
 * [Usage](#usage)
 * [Customization](#customization)
 * [Customizing the keybindings.](#customizing-the-keybindings)
@@ -42,7 +59,6 @@ A simple file manager written in `bash`.
 * [Why?](#why)
 
 <!-- vim-markdown-toc -->
-
 
 ## Dependencies
 
@@ -57,46 +73,30 @@ A simple file manager written in `bash`.
 **Dependencies for image display**
 
 - `w3m-img`
-- `xdotool` for X.
-- `fbset` for the framebuffer.
+- `xdotool` for X
+- `fbset` for the framebuffer
 
+## (Un)installation
 
-## Installation
+1. Download `fff`
+    - Release: https://github.com/IsaacElenbaas/fff/releases/latest
+    - Git: `git clone https://github.com/IsaacElenbaas/fff`
+2. Add to $PATH
+    - https://wiki.archlinux.org/index.php/Environment_variables#Per_user
 
-### Distros
-
-- Arch Linux (based): `pacman -S fff`
-- FreeBSD: `pkg install fff`
-- Haiku: `pkgman install fff`
-- macOS: `brew install fff`
-- Nix: `nix-env -iA fff`
-- Void Linux: `xbps-install -S fff`
-
-### Manual
-
-1. Download `fff`.
-    - Release: https://github.com/dylanaraps/fff/releases/latest
-    - Git: `git clone https://github.com/dylanaraps/fff`
-2. Change working directory to `fff`.
-    - `cd fff`
-3. Run `make install` inside the script directory to install the script.
-    - **El Capitan**: `make PREFIX=/usr/local install`
-    - **Haiku**: `make PREFIX="$(finddir B_USER_NONPACKAGED_DIRECTORY)" MANDIR='$(PREFIX)/documentation/man' DOCDIR='$(PREFIX)/documentation/fff' install`
-    - **OpenIndiana**: `gmake install`
-    - **MinGW/MSys**: `make -i install`
-    - **NOTE**: You may have to run this as root.
-
-**NOTE:** `fff` can be uninstalled easily using `make uninstall`. This removes all of files from your system.
+**NOTE:** `fff` can be uninstalled by - duh - deleting it, and the only other places anything is stored are `.cache/fff` and `.local/share/fff` in your `$HOME` by default, or whatever you've set `XDG_CACHE_HOME` and `XDG_DATA_HOME` to.
 
 ### CD on Exit
 
 ```sh
-# Add this to your .bashrc, .zshrc or equivalent.
-# Run 'fff' with 'f' or whatever you decide to name the function.
+# Add this to your .bashrc, .zshrc or equivalent
+# fff will run with 'fff' or 'f' (or whatever you decide to name the function)
 f() {
-    fff "$@"
-    cd "$(cat "${XDG_CACHE_HOME:=${HOME}/.cache}/fff/.fff_d")"
+    \fff "$@"
+    cd "$(cat "${XDG_CACHE_HOME:=${HOME}/.cache}/fff/.fff_d" 2>/dev/null)"
+    rm "${XDG_CACHE_HOME:=${HOME}/.cache}/fff/.fff_d" 2>/dev/null
 }
+alias fff='f'
 ```
 
 ## Usage
@@ -126,6 +126,7 @@ e: refresh current dir
 
 x: view file/dir attributes
 i: display image with w3m-img
+I: display image with w3m-img at maximum size
 
 down:  scroll down
 up:    scroll up
@@ -139,13 +140,13 @@ X: toggle executable
 
 y: mark copy
 m: mark move
-d: mark trash (~/.local/share/fff/trash/)
+d: mark trash ([~/.local/share/fff or whatever you've set XDG_DATA_HOME to]/trash/)
 s: mark symbolic link
 b: mark bulk rename
 
 Y: mark all for copy
 M: mark all for move
-D: mark all for trash (~/.local/share/fff/trash/)
+D: mark all for trash ([~/.local/share/fff or whatever you've set XDG_DATA_HOME to]/trash/)
 S: mark all for symbolic link
 B: mark all for bulk rename
 
@@ -154,171 +155,187 @@ c: clear file selections
 
 [1-9]: favourites/bookmarks (see customization)
 
-q: exit with 'cd' (if enabled).
-Ctrl+C: exit without 'cd'.
+q: exit (with 'cd' if enabled)
+Ctrl+C: exit without 'cd'
 ```
 
 ## Customization
 
+This is the list of settings along with their default values. You only need to modify the keybindings that you'd like to change from the default. `fff` will run perfectly fine without any of these defined.
+
 ```sh
-# Use LS_COLORS to color fff.
-# (On by default if available)
-# (Ignores FFF_COL1)
-export FFF_LS_COLORS=1
+# Try VISUAL before EDITOR when opening text files or those without a mime_type
+f_visual_default=1
 
-# Show/Hide hidden files on open.
+# Print actions so you can look back at what you did if needed after exiting
+f_print_actions=1
+
+# Ask for confirmation when moving items to trash
+# You can accidentally permanently delete if you set f_trash_cmd to rm or equivalent, be careful!
+f_trash_confirm=1
+
+# Use LS_COLORS to color fff (if set)
+f_LS_COLORS=1
+
+# Show/Hide hidden files on open
 # (On by default)
-export FFF_HIDDEN=0
+f_show_hidden=0
 
-# Directory color [0-9]
-export FFF_COL1=2
+# For color numbers, see http://www.linux-sxs.org/housekeeping/lscolors.html 30-37
 
-# Status background color [0-9]
-export FFF_COL2=7
+# Directory color [0-7]
+f_color1=2
 
-# Selection color [0-9] (copied/moved files)
-export FFF_COL3=6
+# Status background color [0-7]
+f_color2=1
 
-# Cursor color [0-9]
-export FFF_COL4=1
+# Selection color [0-7] (copied/moved files)
+f_color3=1
 
-# Status foreground color [0-9]
-export FFF_COL5=0
+# Cursor color [0-7]
+f_color4=6
 
-# Text Editor
-export EDITOR="vim"
+# Status foreground color [0-7]
+f_color5=0
+
+# Text Editor, you'll have to set these as environment variables in .bashrc or equivalent
+# vi is fallback if neither is set
+# See f_visual_default
+export VISUAL="vi"
+export EDITOR="vi"
 
 # File Opener
-export FFF_OPENER="xdg-open"
+f_opener="xdg-open"
 
-# Enable or disable CD on exit.
-# Default: '1'
-export FFF_CD_ON_EXIT=1
+# Enable or disable CD on exit
+f_cd_on_exit=1
 
 # CD on exit helper file
 # Default: '${XDG_CACHE_HOME}/fff/fff.d'
-#          If not using XDG, '${HOME}/.cache/fff/fff.d' is used.
-export FFF_CD_FILE=~/.fff_d
+#          If not using XDG, '${HOME}/.cache/fff/fff.d' is used
+f_cd_file
 
 # Trash Directory
 # Default: '${XDG_DATA_HOME}/fff/trash'
-#          If not using XDG, '${XDG_DATA_HOME}/fff/trash' is used.
-export FFF_TRASH=~/.local/share/fff/trash
+#          If not using XDG, '${XDG_DATA_HOME}/fff/trash' is used
+f_trash_dir
 
 # Trash Command
-# Default: 'mv'
-#          Define a custom program to use to trash files.
-#          The program will be passed the list of selected files
-#          and directories.
-export FFF_TRASH_CMD="mv"
+# Default (unset, passing anything prevents using default) uses 'mv'
+# The program will be passed the list of selected files and directories
+f_trash_cmd=
 
 # Favourites (Bookmarks) (keys 1-9) (dir or file)
-export FFF_FAV1=~/projects
-export FFF_FAV2=~/.bashrc
-export FFF_FAV3=~/Pictures/Wallpapers/
-export FFF_FAV4=/usr/share
-export FFF_FAV5=/
-export FFF_FAV6=
-export FFF_FAV7=
-export FFF_FAV8=
-export FFF_FAV9=
+f_fav1=
+f_fav2=
+f_fav3=
+f_fav4=
+f_fav5=
+f_fav6=
+f_fav7=
+f_fav8=
+f_fav9=
 
-# w3m-img offsets.
-export FFF_W3M_XOFFSET=0
-export FFF_W3M_YOFFSET=0
+# w3m-img offsets
+f_w3m_offset_x=0
+f_w3m_offset_y=0
 
-# File format.
-# Customize the item string.
+# File format
+# Customize the item string
 # Format ('%f' is the current file): "str%fstr"
 # Example (Add a tab before files): FFF_FILE_FORMAT="\t%f"
-export FFF_FILE_FORMAT="%f"
+f_file_format="%f"
 
-# Mark format.
-# Customize the marked item string.
+# Mark format
+# Customize the marked item string
 # Format ('%f' is the current file): "str%fstr"
 # Example (Add a ' >' before files): FFF_MARK_FORMAT="> %f"
-export FFF_MARK_FORMAT=" %f*"
+f_mark_format=" %f*"
 ```
 
-## Customizing the keybindings.
+## Customizing the keybindings
 
 ### Keybindings
 
-This is the list of full keybindings along with their default values. You only need to modify the keybindings that you'd like to change from the default. `fff` will run perfectly fine without any of these defined.
+This is the list of keybindings along with their default values. You only need to modify the keybindings that you'd like to change from the default. `fff` will run perfectly fine without any of these defined.
 
 ```sh
-### Moving around.
+### Moving around
 
-# Go to child directory.
-export FFF_KEY_CHILD1="l"
-export FFF_KEY_CHILD2=$'\e[C' # Right Arrow
-export FFF_KEY_CHILD3=""      # Enter / Return
+# Go to child directory
+fkey_child1="l"
+fkey_child2=$'\e[C' # Right Arrow
+fkey_child3=""      # Enter / Return
 
-# Go to parent directory.
-export FFF_KEY_PARENT1="h"
-export FFF_KEY_PARENT2=$'\e[D' # Left Arrow
-export FFF_KEY_PARENT3=$'\177' # Backspace
-export FFF_KEY_PARENT4=$'\b'   # Backspace (Older terminals)
+# Go to parent directory
+fkey_parent1="h"
+fkey_parent2=$'\e[D' # Left Arrow
+fkey_parent3=$'\177' # Backspace
+fkey_parent4=$'\b'   # Backspace (Older terminals)
 
-# Go to previous directory.
-export FFF_KEY_PREVIOUS="-"
+# Go to previous directory
+fkey_previous="-"
 
-# Search.
-export FFF_KEY_SEARCH="/"
+# Search
+fkey_search="/"
 
-# Spawn a shell.
-export FFF_KEY_SHELL="!"
+# Spawn a shell
+fkey_shell="!"
 
-# Scroll down.
-export FFF_KEY_SCROLL_DOWN1="j"
-export FFF_KEY_SCROLL_DOWN2=$'\e[B' # Down Arrow
+# Scroll down
+fkey_scroll_down1="j"
+fkey_scroll_down2=$'\e[B' # Down Arrow
 
-# Scroll up.
-export FFF_KEY_SCROLL_UP1="k"
-export FFF_KEY_SCROLL_UP2=$'\e[A'   # Up Arrow
+# Scroll up
+fkey_scroll_up1="k"
+fkey_scroll_up2=$'\e[A'   # Up Arrow
 
-# Go to top and bottom.
-export FFF_KEY_TO_TOP="g"
-export FFF_KEY_TO_BOTTOM="G"
+# Go to top and bottom
+fkey_top="g"
+fkey_bottom="G"
 
-# Go to dirs.
-export FFF_KEY_GO_DIR=":"
-export FFF_KEY_GO_HOME="~"
-export FFF_KEY_GO_TRASH="t"
-export FFF_KEY_REFRESH="e"
+# Go to dirs
+fkey_go_dir=":"
+fkey_go_home="~"
+fkey_go_trash="t"
+fkey_refresh="e"
 
-### File operations.
+### File operations
 
-export FFF_KEY_YANK="y"
-export FFF_KEY_MOVE="m"
-export FFF_KEY_TRASH="d"
-export FFF_KEY_LINK="s"
-export FFF_KEY_BULK_RENAME="b"
+fkey_yank="y"
+fkey_move="m"
+fkey_trash="d"
+fkey_link="s"
+fkey_bulk_rename="b"
 
-export FFF_KEY_YANK_ALL="Y"
-export FFF_KEY_MOVE_ALL="M"
-export FFF_KEY_TRASH_ALL="D"
-export FFF_KEY_LINK_ALL="S"
-export FFF_KEY_BULK_RENAME_ALL="B"
+fkey_yank_all="Y"
+fkey_move_all="M"
+fkey_trash_all="D"
+fkey_link_all="S"
+fkey_bulk_rename_all="B"
 
-export FFF_KEY_PASTE="p"
-export FFF_KEY_CLEAR="c"
+fkey_paste="p"
+fkey_clear="c"
 
-export FFF_KEY_RENAME="r"
-export FFF_KEY_MKDIR="n"
-export FFF_KEY_MKFILE="f"
-export FFF_KEY_IMAGE="i" # display image with w3m-img
+fkey_rename="r"
+fkey_mkdir="n"
+fkey_mkfile="f"
+
+# Display image with w3m-img
+fkey_image_preview="i"
+# Display image with w3m-img at maximum size
+fkey_image_preview_max="I"
 
 ### Miscellaneous
 
-# Show file attributes.
-export FFF_KEY_ATTRIBUTES="x"
+# Show file attributes
+fkey_view_attributes="x"
 
-# Toggle executable flag.
-export FFF_KEY_EXECUTABLE="X"
+# Toggle executable flag
+fkey_toggle_executable="X"
 
-# Toggle hidden files.
-export FFF_KEY_HIDDEN="."
+# Toggle hidden files
+fkey_toggle_show_hidden="."
 ```
 
 ### Disabling keybindings.
@@ -328,45 +345,44 @@ You can't unset keybindings by making their value `''`. What you need to do is c
 Example:
 
 ```sh
-# KEY_GO_TRASH was bound to 't', now its unset.
-export FFF_KEY_GO_TRASH="off"
+# go_trash was bound to 't', now its unset
+fkey_go_trash="off"
 
-# KEY_MKFILE is now set to 't' and its original
-# keybinding is also unset 'f'.
-export FFF_KEY_MKFILE="t"
+# mkfile is now set to 't' and its original
+# keybinding of 'f' is also unset
+fkey_mkfile="t"
 ```
 
-### Dealing with conflicting keybindings.
+### Dealing with conflicting keybindings
 
 When rebinding a key in `fff` make sure you don't have two bindings with the same value. You can avoid this by setting the other conflicting key-binding to something else or by changing its value to `off`.
 
+### How to figure out special keys
 
-### How to figure out special keys.
-
-Below is a tiny script I've written which will tell you the exact value to use. It automates the deciphering of special key escape sequences to the exact value `fff` needs. Save this to a file and run it. Give it a key-press and it'll spit out the exact value needed.
+Below is a tiny script which will tell you the exact value to use. It automates the deciphering of special key escape sequences to the exact value `fff` needs. Save this to a file and run it (or just paste in a terminal). Give it a key-press and it'll spit out the exact value needed.
 
 ```sh
 #!/usr/bin/env bash
-# Output the key-binding values for 'fff'.
+# Output the key-binding values for 'fff'
 key() {
     case "$1" in
-        # Backspace.
+        # Backspace
         $'\b'|$'\177')
             printf '%s\n' "key: \$'\\b' or \$'\\177'"
         ;;
 
-        # Escape Sequences.
+        # Escape Sequences
         $'\e')
             read -rsn 2
             printf '%s %q\n' "key:" "${1}${REPLY}"
         ;;
 
-        # Return / Enter.
+        # Return / Enter
         "")
             printf '%s\n' "key: \" \""
         ;;
 
-        # Everything else.
+        # Everything else
         *)
             printf '%s %q\n' "key:" "$1"
         ;;
@@ -384,5 +400,3 @@ See: [**`fff.vim`**](https://github.com/dylanaraps/fff.vim)
 ## Why?
 
 ¯\\_(ツ)_/¯
-
-<sup><sub>dont touch my shrug</sub></sup>
