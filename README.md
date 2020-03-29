@@ -17,6 +17,7 @@
  - Added `f_print_actions` to toggle printing file operations so you can look back at them after exiting
  - Added `f_trash_confirm` to allow not asking for confirmation when trashing files (I don't know why this wasn't added when the default option isn't to permanently delete)
  - Added `fkey_img_preview_max` to preview images at maximum size
+ - Formatted in hard tabs with spaces for alignment instead of 4-wide soft tabs
 
 # fff (*Fucking Fast File-Manager*)
 
