@@ -1017,6 +1017,15 @@ key() {
 			}
 		;;
 
+		# Open file in vi/m.
+		${fkey_open_vim:=v})
+			clear_screen
+			reset_terminal
+			[[ "$(type vim 2>/dev/null)" ]] && vim "${list[scroll]}" || vi "${list[scroll]}"
+			setup_terminal
+			redraw
+		;;
+
 		# Show image in terminal.
 		${fkey_image_preview:=i})
 			draw_img

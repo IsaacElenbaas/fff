@@ -18,6 +18,7 @@
  - Added `f_trash_confirm` to allow not asking for confirmation when trashing files (I don't know why this wasn't added when the default option isn't to permanently delete)
  - Added `fkey_img_preview_max` to preview images at maximum size
  - Formatted in hard tabs with spaces for alignment instead of 4-wide soft tabs
+ - Added `fkey_open_vim` to open in `vi/m` instead of `VISUAL`/`EDITOR`
 
 # fff (*Fucking Fast File-Manager*)
 
@@ -321,6 +322,9 @@ fkey_clear="c"
 fkey_rename="r"
 fkey_mkdir="n"
 fkey_mkfile="f"
+
+# Open with vi/m instead of VISUAL/EDITOR
+fkey_open_vim="v"
 
 # Display image with w3m-img
 fkey_image_preview="i"
