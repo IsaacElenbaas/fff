@@ -19,6 +19,7 @@
  - Added `fkey_img_preview_max` to preview images at maximum size
  - Formatted in hard tabs with spaces for alignment instead of 4-wide soft tabs
  - Added `fkey_open_vim` to open in `vi/m` instead of `VISUAL`/`EDITOR`
+ - Added `fkey_duplicate` and `fkey_duplicate_all` to duplicate a file
 
 # fff (*Fucking Fast File-Manager*)
 
@@ -31,7 +32,7 @@ A simple file manager written in `bash`.
 <a href="https://repology.org/metapackage/fff"><img src="https://repology.org/badge/tiny-repos/fff.svg" alt="Packaging status"></a>
 
 - It's Fucking Fast 🚀
-- Minimal (*only requires **bash** and coreutils*)
+- Minimal (*almost only requires **bash** and coreutils*)
 - Smooth Scrolling (*using **vim** keybindings*)
 - Works on **Linux**, **BSD**, **macOS**, **Haiku** etc.
 - Supports `LS_COLORS`!
@@ -67,10 +68,12 @@ A simple file manager written in `bash`.
 - `bash 3.2+`
 - `coreutils`
     - File operations.
+- `find` (*optional*)
+    - `duplicate`
 - `xdg-utils` (*optional*)
     - Program handling (*non-text*).
     - *Not needed on macos and Haiku.*
-    - *Customizable (if not using `xdg-open`): `$FFF_OPENER`.*
+    - *Customizable (if not using `xdg-open`): `$f_opener`.*
 
 **Dependencies for image display**
 
@@ -245,13 +248,13 @@ f_w3m_offset_y=0
 # File format
 # Customize the item string
 # Format ('%f' is the current file): "str%fstr"
-# Example (Add a tab before files): FFF_FILE_FORMAT="\t%f"
+# Example (Add a tab before files): f_file_format="\t%f"
 f_file_format="%f"
 
 # Mark format
 # Customize the marked item string
 # Format ('%f' is the current file): "str%fstr"
-# Example (Add a ' >' before files): FFF_MARK_FORMAT="> %f"
+# Example (Add a ' >' before files): f_mark_format="> %f"
 f_mark_format=" %f*"
 ```
 
@@ -308,12 +311,14 @@ fkey_yank="y"
 fkey_move="m"
 fkey_trash="d"
 fkey_link="s"
+fkey_duplicate="a"
 fkey_bulk_rename="b"
 
 fkey_yank_all="Y"
 fkey_move_all="M"
 fkey_trash_all="D"
 fkey_link_all="S"
+fkey_duplicate_all="A"
 fkey_bulk_rename_all="B"
 
 fkey_paste="p"
