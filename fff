@@ -154,7 +154,7 @@ get_mime_type() {
 
 status_line() {
 	# Status_line to print when files are marked for operation.
-	local mark_ui="[${#marked_files[@]}] selected (${file_program[*]}) [p] ->"
+	local mark_ui="[${#marked_files[@]}] selected "$([[ $visual -eq 1 ]] || printf "(${file_program[*]}) [p] ")"->"
 
 	# Escape the directory string.
 	# Remove all non-printable characters.
@@ -172,12 +172,13 @@ status_line() {
 	# '\e[H\e[K':  Clear line below status_line.
 	# '\e8':       Restore cursor position.
 	#              This is more widely supported than '\e[u'.
-	printf '\e7\e[%sH\e[3%s;4%sm%*s\r%s %s%s\e[m\e[%sH\e[K\e8' \
+	printf '\e7\e[%sH\e[3%s;4%sm%*s\r%s %s%s%s\e[m\e[%sH\e[K\e8' \
 	       "$((LINES-1))" \
-	       "${f_color5:-0}" \
-	       "${f_color2:-1}" \
+	       "$([[ $visual -eq 1 ]] && printf ${f_color5_visual:-0} || printf ${f_color5:-0})" \
+	       "$([[ $visual -eq 1 ]] && printf ${f_color2_visual:-3} || printf ${f_color2:-1})" \
 	       "$COLUMNS" "" \
 	       "($((scroll+1))/$((list_total+1)))" \
+	       "$([[ $visual -eq 1 ]] && printf 'VISUAL: ')" \
 	       "${marked_files[*]:+${mark_ui}}" \
 	       "${1:-${PWD_escaped:-/}}" \
 	       "$LINES"
@@ -485,7 +486,7 @@ mark() {
 
 		redraw
 	else
-		if [[ ${marked_files[$1]} == "${list[$1]}" ]]; then
+		if [[ ${marked_files[$1]} == "${list[$1]}" && $visual -eq 0 ]]; then
 			unset 'marked_files[scroll]'
 
 		else
@@ -656,6 +657,34 @@ open() {
 	fi
 }
 
+do_operation() {
+	if [[ ${marked_files[*]} && ( ( $visual -eq 1 && ( "${file_program[0]}" == "trash" || "${file_program[0]}" == "duplicate" || "${file_program[0]}" == "bulk_rename" ) ) || ! $visual -eq 1 ) ]]; then
+		[[ ! -w $PWD ]] && {
+			cmd_line "warn: no write access to dir."
+			return
+		}
+
+		# Clear the screen to make room for a prompt if needed.
+		clear_screen
+		reset_terminal
+
+		stty echo
+		[[ ${f_print_actions:=1} == 1 ]] &&
+			printf '\e[1mfff\e[m: %s\n' "Running ${file_program[0]}"
+		"${file_program[@]}" "${marked_files[@]}" .
+		stty -echo
+
+		((visual=0))
+		marked_files=()
+		setup_terminal
+		redraw full
+		status_line
+	else
+		((visual=0))
+		status_line
+	fi
+}
+
 cmd_line() {
 	# Write to the command_line (under status_line).
 	cmd_reply=
@@ -793,7 +822,7 @@ key() {
 		${fkey_child2:=$'\e[C'}|\
 		${fkey_child3:=""}|\
 		${fkey_child4:=$'\eOC'})
-			open "${list[scroll]}"
+			[[ $visual -eq 1 ]] || open "${list[scroll]}"
 		;;
 
 		# Go to the parent directory.
@@ -827,9 +856,10 @@ key() {
 				((scroll++))
 				((y < max_items)) && ((y++))
 
+				[[ $visual -eq 1 && $visual_begin -gt $scroll-1 ]] && unset 'marked_files[((scroll-1))]' && printf '\e[K'
 				print_line "$((scroll-1))"
 				printf '\n'
-				print_line "$scroll"
+				[[ $visual -eq 1 && $visual_begin -lt $scroll ]] && mark "$scroll" || print_line "$scroll"
 				status_line
 			}
 		;;
@@ -845,6 +875,7 @@ key() {
 			((scroll > 0)) && {
 				((scroll--))
 
+				[[ $visual -eq 1 && $visual_begin -lt $scroll+1 ]] && unset 'marked_files[((scroll+1))]' && printf '\e[K'
 				print_line "$((scroll+1))"
 
 				if ((y < 2)); then
@@ -854,7 +885,7 @@ key() {
 					((y--))
 				fi
 
-				print_line "$scroll"
+				[[ $visual -eq 1 && $visual_begin -gt $scroll ]] && mark "$scroll" || print_line "$scroll"
 				status_line
 			}
 		;;
@@ -862,6 +893,7 @@ key() {
 		# Go to top.
 		${fkey_top:=g})
 			((scroll != 0)) && {
+				[[ $visual -eq 1 ]] && marked_files=( "${list[@]:0:$visual_begin+1}" )
 				scroll=0
 				redraw
 			}
@@ -870,6 +902,13 @@ key() {
 		# Go to bottom.
 		${fkey_bottom:=G})
 			((scroll != list_total)) && {
+				[[ $visual -eq 1 ]] && {
+					marked_files=( "${list[@]}" ) # Can't get this one to work like fkey_top's.
+					local marked_files_bad=( "${list[@]:0:$visual_begin}" )
+					for bad in ${marked_files_bad[@]}; do
+						marked_files=( "${marked_files[@]/$bad}") #Quotes when working with strings
+					done
+				}
 				((scroll=list_total))
 				redraw
 			}
@@ -880,24 +919,28 @@ key() {
 			# 'a=a>0?0:++a': Toggle between both values of 'shopt_flags'.
 			#                This also works for '3' or more values with
 			#                some modification.
-			shopt_flags=(u s)
-			shopt -"${shopt_flags[((a=${a:=$f_show_hidden}>0?0:++a))]}" dotglob
-			redraw full
+			[[ $visual -eq 1 ]] || {
+				shopt_flags=(u s)
+				shopt -"${shopt_flags[((a=${a:=$f_show_hidden}>0?0:++a))]}" dotglob
+				redraw full
+			}
 		;;
 
 		# Search.
 		${fkey_search:=/})
-			cmd_line "/" "search"
+			[[ $visual -eq 1 ]] || {
+				cmd_line "/" "search"
 
-			# If the search came up empty, redraw the current dir.
-			if [[ -z ${list[*]} ]]; then
-				list=("${cur_list[@]}")
-				((list_total=${#list[@]}-1))
-				redraw
-				search=
-			else
-				search=1
-			fi
+				# If the search came up empty, redraw the current dir.
+				if [[ -z ${list[*]} ]]; then
+					list=("${cur_list[@]}")
+					((list_total=${#list[@]}-1))
+					redraw
+					search=
+				else
+					search=1
+				fi
+			}
 		;;
 
 		# Spawn a shell.
@@ -921,6 +964,7 @@ key() {
 		${fkey_duplicate:=a}|\
 		${fkey_bulk_rename:=b})
 			mark "$scroll" "$1"
+			[[ $visual -eq 1 ]] && do_operation
 		;;
 
 		# Mark all files for operation.
@@ -930,35 +974,17 @@ key() {
 		${fkey_link_all:=S}|\
 		${fkey_duplicate_all:=A}|\
 		${fkey_bulk_rename_all:=B})
-			mark all "$1"
+			[[ $visual -eq 1 ]] || mark all "$1"
 		;;
 
 		# Do the file operation.
 		${fkey_paste:=p})
-			[[ ${marked_files[*]} ]] && {
-				[[ ! -w $PWD ]] && {
-					cmd_line "warn: no write access to dir."
-					return
-				}
-
-				# Clear the screen to make room for a prompt if needed.
-				clear_screen
-				reset_terminal
-
-				stty echo
-				[[ ${f_print_actions:=1} == 1 ]] &&
-					printf '\e[1mfff\e[m: %s\n' "Running ${file_program[0]}"
-				"${file_program[@]}" "${marked_files[@]}" .
-				stty -echo
-
-				marked_files=()
-				setup_terminal
-				redraw full
-			}
+			[[ $visual -eq 1 ]] || do_operation
 		;;
 
 		# Clear all marked files.
 		${fkey_clear:=c})
+			visual=0
 			[[ ${marked_files[*]} ]] && {
 				marked_files=()
 				redraw
@@ -967,56 +993,65 @@ key() {
 
 		# Rename list item.
 		${fkey_rename:=r})
-			[[ ! -e ${list[scroll]} ]] &&
-				return
+			if [[ $visual -eq 1 ]]; then
+				file_program=(bulk_rename)
+				do_operation
+			else
+				[[ ! -e ${list[scroll]} ]] &&
+					return
 
-			cmd_line "rename ${list[scroll]##*/}: "
+				cmd_line "rename ${list[scroll]##*/}: "
 
-			[[ $cmd_reply ]] &&
-				if [[ -e $cmd_reply ]]; then
-					cmd_line "warn: '$cmd_reply' already exists."
+				[[ $cmd_reply ]] &&
+					if [[ -e $cmd_reply ]]; then
+						cmd_line "warn: '$cmd_reply' already exists."
 
-				elif [[ -w ${list[scroll]} ]]; then
-					mv "${list[scroll]}" "${PWD}/${cmd_reply}"
-					redraw full
+					elif [[ -w ${list[scroll]} ]]; then
+						mv "${list[scroll]}" "${PWD}/${cmd_reply}"
+						redraw full
 
-				else
-					cmd_line "warn: no write access to file."
-				fi
+					else
+						cmd_line "warn: no write access to file."
+					fi
+			fi
 		;;
 
 		# Create a directory.
 		${fkey_mkdir:=n})
-			cmd_line "mkdir: " "dirs"
+			[[ $visual -eq 1 ]] || {
+				cmd_line "mkdir: " "dirs"
 
-			[[ $cmd_reply ]] &&
-				if [[ -e $cmd_reply ]]; then
-					cmd_line "warn: '$cmd_reply' already exists."
+				[[ $cmd_reply ]] &&
+					if [[ -e $cmd_reply ]]; then
+						cmd_line "warn: '$cmd_reply' already exists."
 
-				elif [[ -w $PWD ]]; then
-					mkdir -p "${PWD}/${cmd_reply}"
-					redraw full
+					elif [[ -w $PWD ]]; then
+						mkdir -p "${PWD}/${cmd_reply}"
+						redraw full
 
-				else
-					cmd_line "warn: no write access to dir."
-				fi
+					else
+						cmd_line "warn: no write access to dir."
+					fi
+			}
 		;;
 
 		# Create a file.
 		${fkey_mkfile:=f})
-			cmd_line "mkfile: "
+			[[ $visual -eq 1 ]] || {
+				cmd_line "mkfile: "
 
-			[[ $cmd_reply ]] &&
-				if [[ -e $cmd_reply ]]; then
-					cmd_line "warn: '$cmd_reply' already exists."
+				[[ $cmd_reply ]] &&
+					if [[ -e $cmd_reply ]]; then
+						cmd_line "warn: '$cmd_reply' already exists."
 
-				elif [[ -w $PWD ]]; then
-					: > "$cmd_reply"
-					redraw full
+					elif [[ -w $PWD ]]; then
+						: > "$cmd_reply"
+						redraw full
 
-				else
-					cmd_line "warn: no write access to dir."
-				fi
+					else
+						cmd_line "warn: no write access to dir."
+					fi
+			}
 		;;
 
 		# Show file attributes.
@@ -1032,24 +1067,37 @@ key() {
 
 		# Toggle executable flag.
 		${fkey_toggle_executable:=X})
-			[[ -f ${list[scroll]} && -w ${list[scroll]} ]] && {
-				if [[ -x ${list[scroll]} ]]; then
-					chmod -x "${list[scroll]}"
-					status_line "Unset executable."
-				else
-					chmod +x "${list[scroll]}"
-					status_line "Set executable."
-				fi
+			[[ $visual -eq 1 ]] || {
+				[[ -f ${list[scroll]} && -w ${list[scroll]} ]] && {
+					if [[ -x ${list[scroll]} ]]; then
+						chmod -x "${list[scroll]}"
+						status_line "Unset executable."
+					else
+						chmod +x "${list[scroll]}"
+						status_line "Set executable."
+					fi
+				}
 			}
 		;;
 
 		# Open file in vi/m.
 		${fkey_open_vim:=v})
-			clear_screen
-			reset_terminal
-			type -p "vim" &>/dev/null && vim "${list[scroll]}" || vi "${list[scroll]}"
-			setup_terminal
-			redraw
+			[[ $visual -eq 1 ]] || {
+				clear_screen
+				reset_terminal
+				type -p "vim" &>/dev/null && vim "${list[scroll]}" || vi "${list[scroll]}"
+				setup_terminal
+				redraw
+			}
+		;;
+
+		# Toggle visual mode.
+		${fkey_toggle_visual:=V})
+			visual_begin=$scroll
+			((visual=1-visual))
+			marked_files=()
+			[[ $visual -eq 1 ]] && mark "$scroll"
+			redraw # Needed to clear marked if cancelling.
 		;;
 
 		# Show image in terminal.
@@ -1064,6 +1112,8 @@ key() {
 
 		# Go to dir.
 		${fkey_go_dir:=:})
+			[[ -z "${file_program[@]}" ]] && marked_files=()
+			visual=0
 			cmd_line "go to dir: " "dirs"
 
 			# Let 'cd' know about the current directory.
@@ -1076,22 +1126,29 @@ key() {
 
 		# Go to '$HOME'.
 		${fkey_go_home:='~'})
+			[[ -z "${file_program[@]}" ]] && marked_files=()
+			visual=0
 			open ~
 		;;
 
 		# Go to trash.
 		${fkey_go_trash:=t})
+			[[ -z "${file_program[@]}" ]] && marked_files=()
+			visual=0
 			get_os
 			open "$f_trash_dir"
 		;;
 
 		# Go to previous dir.
 		${fkey_previous:=-})
+			[[ -z "${file_program[@]}" ]] && marked_files=()
+			visual=0
 			open "$OLDPWD"
 		;;
 
 		# Refresh current dir.
 		${fkey_refresh:=e})
+			visual=0
 			open "$PWD"
 		;;
 

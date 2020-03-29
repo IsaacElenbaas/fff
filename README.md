@@ -7,7 +7,7 @@
 
  - I use [Auto Shift](https://beta.docs.qmk.fm/using-qmk/software-features/feature_auto_shift), and I hated trying to type them. I even have a backup shift key to type all caps and it was bad because I had to switch between hitting that and the underscores
  - If I was going to make a fork to make a config file and fix a few bugs, why would I rewrite the config with garbage names and *then* make a workaround so I don't have to type them?
- - At the moment there's not a ton those using the main branch are missing out on
+ - At the moment there's not a *ton* those using the main branch are missing out on (though the list is growing. . . I might have to make a branch to merge a bit)
 
 ## What's changed?
 
@@ -20,6 +20,7 @@
  - Formatted in hard tabs with spaces for alignment instead of 4-wide soft tabs
  - Added `fkey_open_vim` to open in `vi/m` instead of `VISUAL`/`EDITOR`
  - Added `fkey_duplicate` and `fkey_duplicate_all` to duplicate a file
+ - Added `visual` mode, for easier selection
 
 # fff (*Fucking Fast File-Manager*)
 
@@ -144,19 +145,23 @@ r: rename
 X: toggle executable
 
 y: mark copy
+a: mark duplicate
 m: mark move
 d: mark trash ([~/.local/share/fff or whatever you've set XDG_DATA_HOME to]/trash/)
 s: mark symbolic link
 b: mark bulk rename
 
 Y: mark all for copy
+A: mark all for duplicate
 M: mark all for move
 D: mark all for trash ([~/.local/share/fff or whatever you've set XDG_DATA_HOME to]/trash/)
 S: mark all for symbolic link
 B: mark all for bulk rename
 
+v: open file in vi/m (instead of VISUAL/EDITOR)
+V: toggle visual mode
 p: paste/move/delete/bulk_rename
-c: clear file selections
+c: clear file selections and close visual mode
 
 [1-9]: favourites/bookmarks (see customization)
 
@@ -330,6 +335,10 @@ fkey_mkfile="f"
 
 # Open with vi/m instead of VISUAL/EDITOR
 fkey_open_vim="v"
+
+# Toggle visual mode (not to be confused with VISUAL)
+# Default is 'V' over 'v' because in other programs 'v' is open in vi/m
+fkey_toggle_visual="V"
 
 # Display image with w3m-img
 fkey_image_preview="i"
