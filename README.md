@@ -137,7 +137,7 @@ G: go to bottom
 /: search
 t: go to trash
 ~: go to home
-e: refresh current dir
+R: refresh current dir
 !: open shell in current dir
 
 x: view file/dir attributes
@@ -160,6 +160,7 @@ m: mark move
 d: mark trash ([~/.local/share/fff or whatever you've set XDG_DATA_HOME to]/trash/)
 s: mark symbolic link
 b: mark bulk rename
+e: mark bulk execute
 
 Y: mark all for copy
 A: mark all for duplicate
@@ -167,6 +168,7 @@ M: mark all for move
 D: mark all for trash ([~/.local/share/fff or whatever you've set XDG_DATA_HOME to]/trash/)
 S: mark all for symbolic link
 B: mark all for bulk rename
+E: mark all for bulk execute
 
 v: open file in vi/m (instead of VISUAL/EDITOR)
 V: toggle visual mode
