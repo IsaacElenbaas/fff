@@ -21,6 +21,7 @@
  - Added `fkey_open_vim` to open in `vi/m` instead of `VISUAL`/`EDITOR`
  - Added `fkey_duplicate` and `fkey_duplicate_all` to duplicate a file
  - Added `visual` mode, for easier selection
+ - Added `fkey_bulk_execute` and `fkey_bulk_execute_all` to run commands on selected files
 
 # fff (*Fucking Fast File-Manager*)
 
@@ -308,7 +309,7 @@ fkey_bottom="G"
 fkey_go_dir=":"
 fkey_go_home="~"
 fkey_go_trash="t"
-fkey_refresh="e"
+fkey_refresh="R"
 
 ### File operations
 
@@ -318,6 +319,7 @@ fkey_trash="d"
 fkey_link="s"
 fkey_duplicate="a"
 fkey_bulk_rename="b"
+fkey_bulk_execute="e"
 
 fkey_yank_all="Y"
 fkey_move_all="M"
@@ -325,6 +327,7 @@ fkey_trash_all="D"
 fkey_link_all="S"
 fkey_duplicate_all="A"
 fkey_bulk_rename_all="B"
+fkey_bulk_execute_all="E"
 
 fkey_paste="p"
 fkey_clear="c"

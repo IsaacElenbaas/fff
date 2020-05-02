@@ -514,6 +514,10 @@ mark() {
 		${fkey_bulk_rename:=b}|${fkey_bulk_rename_all:=B})
 			file_program=(bulk_rename)
 		;;
+
+		${fkey_bulk_execute:=e}|${fkey_bulk_execute_all:=E})
+			file_program=(bulk_execute)
+		;;
 	esac
 
 	status_line
@@ -615,6 +619,34 @@ bulk_rename() {
 	setup_terminal
 }
 
+bulk_execute() {
+	# Bulk execute commands with files as params using '$EDITOR'.
+	cmd_line "bulk execute command: "
+
+	[[ $cmd_reply ]] || return
+
+	execute_file=${XDG_CACHE_HOME:=${HOME}/.cache}/fff/bulk_execute
+	marked_files=("${@:1:$#-1}")
+
+	printf '%s\n%s\n' \
+	       "# This file will be executed when the editor is closed." \
+	       "# Clear the file to abort." > "$execute_file"
+
+	# Save command + marked files to a file and open them for editing.
+	for ((i=0;i<${#marked_files[@]};i++)); {
+		printf "$cmd_reply"' %q\n' \
+					 "${marked_files[i]}"
+	} >> "$execute_file"
+
+	"${EDITOR:-vi}" "$execute_file"
+
+	source "$execute_file"
+	rm "$execute_file"
+
+	# Fix terminal settings after '$EDITOR'.
+	setup_terminal
+}
+
 open() {
 	# Open directories and files.
 	if [[ -d $1/ ]]; then
@@ -658,7 +690,7 @@ open() {
 }
 
 do_operation() {
-	if [[ ${marked_files[*]} && ( ( $visual -eq 1 && ( "${file_program[0]}" == "trash" || "${file_program[0]}" == "duplicate" || "${file_program[0]}" == "bulk_rename" ) ) || ! $visual -eq 1 ) ]]; then
+	if [[ ${marked_files[*]} && ( ( $visual -eq 1 && ( "${file_program[0]}" == "trash" || "${file_program[0]}" == "duplicate" || "${file_program[0]}" == "bulk_rename" || "${file_program[0]}" == "bulk_execute" ) ) || ! $visual -eq 1 ) ]]; then
 		[[ ! -w $PWD ]] && {
 			cmd_line "warn: no write access to dir."
 			return
@@ -962,7 +994,8 @@ key() {
 		${fkey_trash:=d}|\
 		${fkey_link:=s}|\
 		${fkey_duplicate:=a}|\
-		${fkey_bulk_rename:=b})
+		${fkey_bulk_rename:=b}|\
+		${fkey_bulk_execute:=e})
 			mark "$scroll" "$1"
 			[[ $visual -eq 1 ]] && do_operation
 		;;
@@ -973,7 +1006,8 @@ key() {
 		${fkey_trash_all:=D}|\
 		${fkey_link_all:=S}|\
 		${fkey_duplicate_all:=A}|\
-		${fkey_bulk_rename_all:=B})
+		${fkey_bulk_rename_all:=B}|\
+		${fkey_bulk_execute_all:=E})
 			[[ $visual -eq 1 ]] || mark all "$1"
 		;;
 
@@ -1147,7 +1181,7 @@ key() {
 		;;
 
 		# Refresh current dir.
-		${fkey_refresh:=e})
+		${fkey_refresh:=R})
 			visual=0
 			open "$PWD"
 		;;
