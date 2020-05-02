@@ -29,10 +29,6 @@
 
 A simple file manager written in `bash`.
 
-<a href="https://travis-ci.org/dylanaraps/fff"><img src="https://travis-ci.org/dylanaraps/fff.svg?branch=master"></a>
-<a href="https://github.com/dylanaraps/fff/releases"><img src="https://img.shields.io/github/release/dylanaraps/fff.svg"></a>
-<a href="https://repology.org/metapackage/fff"><img src="https://repology.org/badge/tiny-repos/fff.svg" alt="Packaging status"></a>
-
 - It's Fucking Fast 🚀
 - Minimal (*almost only requires **bash** and coreutils*)
 - Smooth Scrolling (*using **vim** keybindings*)
