@@ -53,6 +53,9 @@ A simple file manager written in `bash`.
 
 * [Dependencies](#dependencies)
 * [(Un)installation](#uninstallation)
+* [CD on Exit](#cd-on-exit)
+    * [Bash](#bash-and-zsh)
+    * [Fish](#fish)
 * [Usage](#usage)
 * [Customization](#customization)
 * [Customizing the keybindings.](#customizing-the-keybindings)
@@ -94,7 +97,7 @@ A simple file manager written in `bash`.
 **NOTE:** `fff` can be uninstalled by - duh - deleting it, and the only other places anything is stored are `.cache/fff` and `.local/share/fff` in your `$HOME` by default, or whatever you've set `XDG_CACHE_HOME` and `XDG_DATA_HOME` to.
 
 ### CD on Exit
-
+#### Bash and Zsh
 ```sh
 # Add this to your .bashrc, .zshrc or equivalent
 # fff will run with 'fff' or 'f' (or whatever you decide to name the function)
@@ -104,6 +107,16 @@ f() {
     rm "${XDG_CACHE_HOME:=${HOME}/.cache}/fff/.fff_d" 2>/dev/null
 }
 alias fff='f'
+```
+#### Fish
+```sh
+# Add this to you config.fish or equivalent.
+# Fish don't support recursive calls so use f function
+function f
+    fff $argv
+    set -q XDG_CACHE_HOME; or set XDG_CACHE_HOME $HOME/.cache
+    cd (cat $XDG_CACHE_HOME/fff/.fff_d)
+end
 ```
 
 ## Usage
