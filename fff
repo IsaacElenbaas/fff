@@ -730,7 +730,9 @@ cmd_line() {
 
 	# '\r\e[K': Redraw the read prompt on every keypress.
 	#           This is mimicking what happens normally.
-	while IFS= read -rsn 1 -p $'\r\e[K'"${1}${cmd_reply}" read_reply; do
+	while IFS= read -rs -n 1 -p $'\r\e[K'"${1}${cmd_reply}" read_reply; do
+		read -rs -n 99 -t 0.005 read_reply2
+		read_reply="$read_reply$read_reply2"
 		case $read_reply in
 			# Backspace.
 			$'\177'|$'\b')
@@ -1276,7 +1278,9 @@ main() {
 
 	# Vintage infinite loop.
 	for ((;;)); {
-		read "${read_flags[@]}" -srn 1 && key "$REPLY"
+		read "${read_flags[@]}" -rs -n 1 key
+		read -rs -n 99 -t 0.005 key2
+		[ -n "$key$key2" ] && key "$key$key2"
 
 		# Exit if there is no longer a terminal attached.
 		[[ -t 1 ]] || exit 1
