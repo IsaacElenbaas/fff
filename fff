@@ -160,6 +160,11 @@ status_line() {
 	# Remove all non-printable characters.
 	PWD_escaped=${PWD//[^[:print:]]/^[}
 
+	# Spaces and braille blanks take turns making up the bar background.
+	# This fixes issues where terminal doesn't redraw after clear as the
+	# text itself is the same, even if highlight isn't.
+	# I experienced this issue in a vim terminal in screen.
+	[ -z "$space" ] && space=1 || space=
 	# '\e7':       Save cursor position.
 	#              This is more widely supported than '\e[s'.
 	# '\e[%sH':    Move cursor to bottom of the terminal.
@@ -172,11 +177,14 @@ status_line() {
 	# '\e[H\e[K':  Clear line below status_line.
 	# '\e8':       Restore cursor position.
 	#              This is more widely supported than '\e[u'.
-	printf '\e7\e[%sH\e[3%s;4%sm%*s\r%s %s%s%s\e[m\e[%sH\e[K\e8' \
+	printf '\e7\e[%sH\e[3%s;4%sm%s' \
 	       "$((LINES-1))" \
 	       "$([[ $visual -eq 1 ]] && printf ${f_color5_visual:-0} || printf ${f_color5:-0})" \
 	       "$([[ $visual -eq 1 ]] && printf ${f_color2_visual:-3} || printf ${f_color2:-1})" \
-	       "$COLUMNS" "" \
+	       "$([ -z "$space" ] && printf '%*s' "$COLUMNS" "" | sed -e 's/\s/⠀/g' || printf '%*s' "$COLUMNS" "")"
+	# These are separated for the same reason spaces and braille blanks
+	# take turns - to force redraw of that text after clearing
+	printf '\r%s %s%s%s\e[m\e[%sH\e[K\e8' \
 	       "($((scroll+1))/$((list_total+1)))" \
 	       "$([[ $visual -eq 1 ]] && printf 'VISUAL: ')" \
 	       "${marked_files[*]:+${mark_ui}}" \
@@ -440,7 +448,8 @@ draw_img() {
 	       "${list[scroll]}" | "$w3m" &>/dev/null
 
 	# Wait for user input.
-	read -ern 1
+	read -rs -n 1 key
+	read -rs -n 99 -t 0.005 key2
 
 	# Clear the image.
 	printf '6;%s;%s;%s;%s\n3;' \
@@ -450,6 +459,45 @@ draw_img() {
 	       "$HEIGHT" | "$w3m" &>/dev/null
 
 	redraw
+
+	case $key$key2 in
+		# Show image in terminal
+		${fkey_image_preview:=i}|${fkey_image_preview_max:=I}) ;;
+		# For any other action actually do it.
+		*)
+			key "$key$key2"
+		;;
+	esac
+	# Draw newly hovered image if key triggered movement.
+	case $key$key2 in
+		# Scroll down.
+		# 'B' is what bash sees when the down arrow is pressed
+		# ('\e[B' or '\eOB').
+		${fkey_scroll_down1:=j}|\
+		${fkey_scroll_down2:=$'\e[B'}|\
+		${fkey_scroll_down3:=$'\eOB'})
+			[[ $1 -ne 1 ]] && draw_img || draw_img 1
+		;;
+
+		# Scroll up.
+		# 'A' is what bash sees when the up arrow is pressed
+		# ('\e[A' or '\eOA').
+		${fkey_scroll_up1:=k}|\
+		${fkey_scroll_up2:=$'\e[A'}|\
+		${fkey_scroll_up3:=$'\eOA'})
+			[[ $1 -ne 1 ]] && draw_img || draw_img 1
+		;;
+
+		# Go to top.
+		${fkey_top:=g})
+			[[ $1 -ne 1 ]] && draw_img || draw_img 1
+		;;
+
+		# Go to bottom.
+		${fkey_bottom:=G})
+			[[ $1 -ne 1 ]] && draw_img || draw_img 1
+		;;
+	esac
 }
 
 redraw() {
@@ -502,9 +550,9 @@ mark() {
 	# Find the program to use.
 	case "$2" in
 		${fkey_yank:=y}|${fkey_yank_all:=Y}) file_program=(cp -iR) ;;
-		${fkey_duplicate:=a}|${fkey_duplicate_all:=A}) file_program=(duplicate);;
-		${fkey_move:=m}|${fkey_move_all:=M}) file_program=(mv -i)  ;;
-		${fkey_link:=s}|${fkey_link_all:=S}) file_program=(ln -s)  ;;
+		${fkey_duplicate:=a}|${fkey_duplicate_all:=A}) file_program=(duplicate) ;;
+		${fkey_move:=m}|${fkey_move_all:=M}) file_program=(mv -i) ;;
+		${fkey_link:=s}|${fkey_link_all:=S}) file_program=(ln -s) ;;
 
 		# These are 'fff' functions.
 		${fkey_trash:=d}|${fkey_trash_all:=D})

@@ -1,15 +1,4 @@
-## Why is this staying a fork?
-
- - It's a unneccessary breaking change (changing all the config names) and I don't want to pollute the code with `: ${fkey_child1:=FFF_KEY_CHILD1}` for all 64 original settings
- - I don't feel it's going to deviate far enough to justify detachment
-
-## Why not just. . . leave the config names alone?
-
- - I use [Auto Shift](https://beta.docs.qmk.fm/using-qmk/software-features/feature_auto_shift), and I hated trying to type them. I even have a backup shift key to type all caps and it was bad because I had to switch between hitting that and the underscores
- - If I was going to make a fork to make a config file and fix a few bugs, why would I rewrite the config with garbage names and *then* make a workaround so I don't have to type them?
- - At the moment there's not a *ton* those using the main branch are missing out on (though the list is growing. . . I might have to make a branch to merge a bit)
-
-## What's changed?
+## List of Modifications
 
  - Added a config file (`~/.fff`) and removed globals
  - Made `f_color1` have priority over `di` from `LS_COLORS`
@@ -19,9 +8,11 @@
  - Added `fkey_img_preview_max` to preview images at maximum size
  - Formatted in hard tabs with spaces for alignment instead of 4-wide soft tabs
  - Added `fkey_open_vim` to open in `vi/m` instead of `VISUAL`/`EDITOR`
- - Added `fkey_duplicate` and `fkey_duplicate_all` to duplicate a file
+ - Added `fkey_duplicate` and `fkey_duplicate_all` to duplicate files
  - Added `visual` mode, for easier selection
  - Added `fkey_bulk_execute` and `fkey_bulk_execute_all` to run commands on selected files
+ - Improved keypress recognition; eg. Ctrl+Left won't mark all for deletion because the escape sequence ends with `D`
+ - Improved image viewing (actions used to close will happen, and if it was a movement fff will attempt to show the newly highlighted item)
 
 # fff (*Fucking Fast File-Manager*)
 
