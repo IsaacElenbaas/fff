@@ -397,59 +397,69 @@ draw_img() {
 		return
 	}
 
-	# Get terminal window size in pixels and set it to WIDTH and HEIGHT.
-	if [[ $win_info_cmd == xdotool ]]; then
-		IFS=$'\n' read -d "" -ra win_info \
-		    < <(xdotool getactivewindow getwindowgeometry --shell)
+	redraw=1
+	catchredraw=1
+	# Vintage infinite loop.
+	for ((;;)); {
+		[[ $redraw -eq 1 ]] && redraw= && {
+			# Get terminal window size in pixels and set it to WIDTH and HEIGHT.
+			if [[ $win_info_cmd == xdotool ]]; then
+				IFS=$'\n' read -d "" -ra win_info \
+						< <(xdotool getactivewindow getwindowgeometry --shell)
 
-		declare "${win_info[@]}" &>/dev/null || {
-			cmd_line "error: Failed to retrieve window size."
-			return
+				declare "${win_info[@]}" &>/dev/null || {
+					cmd_line "error: Failed to retrieve window size."
+					return
+				}
+			else
+				[[ $(fbset --show) =~ .*\"([0-9]+x[0-9]+)\".* ]]
+				IFS=x read -r WIDTH HEIGHT <<< "${BASH_REMATCH[1]}"
+			fi
+
+			# Get the image size in pixels.
+			read -r img_width img_height < <("$w3m" <<< "5;${list[scroll]}")
+
+			if [[ $1 -eq 1 ]]; then
+				((img_width=HEIGHT*img_width/img_height))
+				img_height=$HEIGHT
+			else
+				# Substract the status_line area from the image size.
+				((HEIGHT=HEIGHT-HEIGHT*5/LINES))
+
+				((img_height > HEIGHT)) && {
+					((img_width=img_width*HEIGHT/img_height))
+					((img_height=HEIGHT))
+				}
+			fi
+
+			((img_width > WIDTH)) && {
+				((img_height=img_height*WIDTH/img_width))
+				((img_width=WIDTH))
+			}
+
+			clear_screen
+			status_line "${list[scroll]}"
+
+			# Add a small delay to fix issues in VTE terminals.
+			((BASH_VERSINFO[0] > 3)) &&
+				read "${read_flags[@]}" -srn 1
+			# Display the image.
+			printf '0;1;%s;%s;%s;%s;;;;;%s\n3;\n4\n' \
+						 "${f_w3m_offset_x:-0}" \
+						 "${f_w3m_offset_y:-0}" \
+						 "$img_width" \
+						 "$img_height" \
+						 "${list[scroll]}" | "$w3m" &>/dev/null
 		}
-	else
-		[[ $(fbset --show) =~ .*\"([0-9]+x[0-9]+)\".* ]]
-		IFS=x read -r WIDTH HEIGHT <<< "${BASH_REMATCH[1]}"
-	fi
 
-	# Get the image size in pixels.
-	read -r img_width img_height < <("$w3m" <<< "5;${list[scroll]}")
+		# Wait for user input.
+		read -rs -n 99 -t 0.05 key
+		[ -n "$key" ] && break
 
-	if [[ $1 -eq 1 ]]; then
-		((img_width=HEIGHT*img_width/img_height))
-		img_height=$HEIGHT
-	else
-		# Substract the status_line area from the image size.
-		((HEIGHT=HEIGHT-HEIGHT*5/LINES))
-
-		((img_height > HEIGHT)) && {
-			((img_width=img_width*HEIGHT/img_height))
-			((img_height=HEIGHT))
-		}
-	fi
-
-	((img_width > WIDTH)) && {
-		((img_height=img_height*WIDTH/img_width))
-		((img_width=WIDTH))
+		# Exit if there is no longer a terminal attached.
+		[[ -t 1 ]] || exit 1
 	}
-
-	clear_screen
-	status_line "${list[scroll]}"
-
-	# Add a small delay to fix issues in VTE terminals.
-	((BASH_VERSINFO[0] > 3)) &&
-		read "${read_flags[@]}" -srn 1
-
-	# Display the image.
-	printf '0;1;%s;%s;%s;%s;;;;;%s\n3;\n4\n' \
-	       "${f_w3m_offset_x:-0}" \
-	       "${f_w3m_offset_y:-0}" \
-	       "$img_width" \
-	       "$img_height" \
-	       "${list[scroll]}" | "$w3m" &>/dev/null
-
-	# Wait for user input.
-	read -rs -n 1 key
-	read -rs -n 99 -t 0.005 key2
+	catchredraw=
 
 	# Clear the image.
 	printf '6;%s;%s;%s;%s\n3;' \
@@ -460,7 +470,7 @@ draw_img() {
 
 	redraw
 
-	case $key$key2 in
+	case $key in
 		# Show image in terminal
 		${fkey_image_preview:=i}|${fkey_image_preview_max:=I}) ;;
 		# For any other action actually do it.
@@ -501,6 +511,8 @@ draw_img() {
 }
 
 redraw() {
+	[[ $catchredraw -eq 1 ]] && redraw=1
+
 	# Redraw the current window.
 	# If 'full' is passed, re-fetch the directory list.
 	[[ $1 == full ]] && {
@@ -1141,11 +1153,35 @@ key() {
 		# Show file attributes.
 		${fkey_view_attributes:=x})
 			[[ -e "${list[scroll]}" ]] && {
-				clear_screen
-				status_line "${list[scroll]}"
-				stat "${list[scroll]}"
-				read -ern 1
+				redraw=1
+				catchredraw=1
+				# Vintage infinite loop.
+				for ((;;)); {
+					[[ $redraw -eq 1 ]] && redraw= && {
+						clear_screen
+						status_line "${list[scroll]}"
+						stat "${list[scroll]}"
+					}
+
+					# Wait for user input.
+					read -rs -n 99 -t 0.05 key
+					[ -n "$key" ] && break
+
+					# Exit if there is no longer a terminal attached.
+					[[ -t 1 ]] || exit 1
+				}
+				catchredraw=
+
 				redraw
+
+				case $key$key2 in
+					# Show file attributes.
+					${fkey_view_attributes:=x}) ;;
+					# For any other action actually do it.
+					*)
+						key "$key$key2"
+					;;
+				esac
 			}
 		;;
 

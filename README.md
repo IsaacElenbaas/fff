@@ -13,6 +13,7 @@
  - Added `fkey_bulk_execute` and `fkey_bulk_execute_all` to run commands on selected files
  - Improved keypress recognition; eg. Ctrl+Left won't mark all for deletion because the escape sequence ends with `D`
  - Improved image viewing (actions used to close will happen, and if it was a movement fff will attempt to show the newly highlighted item)
+ - Made image viewing and stats viewing update on size change
 
 # fff (*Fucking Fast File-Manager*)
 
