@@ -14,6 +14,7 @@
  - Improved keypress recognition; eg. Ctrl+Left won't mark all for deletion because the escape sequence ends with `D`
  - Improved image viewing (actions used to close will happen, and if it was a movement fff will attempt to show the newly highlighted item)
  - Made image viewing and stats viewing update on size change
+ - Made image viewing refresh on focus regained, so that switching between WM tabs does not hide image sometimes.
 
 # fff (*Fucking Fast File-Manager*)
 

@@ -437,7 +437,6 @@ draw_img() {
 				((img_width=WIDTH))
 			}
 
-			clear_screen
 			status_line "${list[scroll]}"
 
 			# Add a small delay to fix issues in VTE terminals.
@@ -454,54 +453,56 @@ draw_img() {
 
 		# Wait for user input.
 		read -rs -n 99 -t 0.05 key
-		[ -n "$key" ] && break
+		# Do not break if keys are from focus lost.
+		[[ "${key::3}" == $'\e[O' ]] && ([[ ${#key} -eq 3 ]] || [[ "${key:3:1}" == $'\e' ]]) || {
+			[[ -n "$key" ]] && break
+		}
 
 		# Exit if there is no longer a terminal attached.
 		[[ -t 1 ]] || exit 1
 	}
 	catchredraw=
 
-	# Clear the image.
-	printf '6;%s;%s;%s;%s\n3;' \
-	       "${f_w3m_offset_x:-0}" \
-	       "${f_w3m_offset_y:-0}" \
-	       "$WIDTH" \
-	       "$HEIGHT" | "$w3m" &>/dev/null
-
-	redraw
+	# Terminal expose event.
+	if [[ "${key::3}" == $'\e[I' ]] && ([[ ${#key} -eq 3 ]] || [[ "${key:3:1}" == $'\e' ]]); then
+		[[ $1 -ne 1 ]] && draw_img || draw_img 1
+	else
+		# Clear the image.
+		printf '6;%s;%s;%s;%s\n3;' \
+		       "${f_w3m_offset_x:-0}" \
+		       "${f_w3m_offset_y:-0}" \
+		       "$WIDTH" \
+		       "$HEIGHT" | "$w3m" &>/dev/null
+		redraw
+	fi
 
 	case $key in
-		# Show image in terminal
+		# Close image.
 		${fkey_image_preview:=i}|${fkey_image_preview_max:=I}) ;;
+
 		# For any other action actually do it.
 		*)
-			key "$key$key2"
+			key "$key"
 		;;
 	esac
 	# Draw newly hovered image if key triggered movement.
-	case $key$key2 in
+	case $key in
 		# Scroll down.
 		# 'B' is what bash sees when the down arrow is pressed
 		# ('\e[B' or '\eOB').
 		${fkey_scroll_down1:=j}|\
 		${fkey_scroll_down2:=$'\e[B'}|\
-		${fkey_scroll_down3:=$'\eOB'})
-			[[ $1 -ne 1 ]] && draw_img || draw_img 1
-		;;
+		${fkey_scroll_down3:=$'\eOB'}) ;&
 
 		# Scroll up.
 		# 'A' is what bash sees when the up arrow is pressed
 		# ('\e[A' or '\eOA').
 		${fkey_scroll_up1:=k}|\
 		${fkey_scroll_up2:=$'\e[A'}|\
-		${fkey_scroll_up3:=$'\eOA'})
-			[[ $1 -ne 1 ]] && draw_img || draw_img 1
-		;;
+		${fkey_scroll_up3:=$'\eOA'}) ;&
 
 		# Go to top.
-		${fkey_top:=g})
-			[[ $1 -ne 1 ]] && draw_img || draw_img 1
-		;;
+		${fkey_top:=g}) ;&
 
 		# Go to bottom.
 		${fkey_bottom:=G})
@@ -1174,12 +1175,12 @@ key() {
 
 				redraw
 
-				case $key$key2 in
-					# Show file attributes.
+				case $key in
+					# Close file attributes.
 					${fkey_view_attributes:=x}) ;;
 					# For any other action actually do it.
 					*)
-						key "$key$key2"
+						key "$key"
 					;;
 				esac
 			}
@@ -1352,6 +1353,9 @@ main() {
 
 	# Trap the window resize signal (handle window resize events).
 	trap 'get_term_size; redraw' WINCH
+
+	# Get focus events as \e[I or \e[O.
+	printf $'\e[?1004h'
 
 	get_os
 	get_term_size
