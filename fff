@@ -165,8 +165,6 @@ status_line() {
 	# text itself is the same, even if highlight isn't.
 	# I experienced this issue in a vim terminal in screen.
 	[ -z "$space" ] && space=1 || space=
-	# '\e7':       Save cursor position.
-	#              This is more widely supported than '\e[s'.
 	# '\e[%sH':    Move cursor to bottom of the terminal.
 	# '\e[30;41m': Set foreground and background colors.
 	# '%*s':       Insert enough spaces to fill the screen width.
@@ -175,21 +173,21 @@ status_line() {
 	# '\r':        Move cursor back to column 0 (was at EOL due to above).
 	# '\e[m':      Reset text formatting.
 	# '\e[H\e[K':  Clear line below status_line.
-	# '\e8':       Restore cursor position.
-	#              This is more widely supported than '\e[u'.
-	printf '\e7\e[%sH\e[3%s;4%sm%s' \
+	# '\e[%sH':    Restore cursor position.
+	printf '\e[%sH\e[3%s;4%sm%s' \
 	       "$((LINES-1))" \
 	       "$([[ $visual -eq 1 ]] && printf ${f_color5_visual:-0} || printf ${f_color5:-0})" \
 	       "$([[ $visual -eq 1 ]] && printf ${f_color2_visual:-3} || printf ${f_color2:-1})" \
-	       "$([ -z "$space" ] && printf '%*s' "$COLUMNS" "" | sed -e 's/\s/⠀/g' || printf '%*s' "$COLUMNS" "")"
+	       "$(spaces="$(printf '%*s' "$COLUMNS" "")"; [ -z "$space" ] && spaces="${spaces//[[:space:]]/$'\u2800'}"; printf "$spaces")"
 	# These are separated for the same reason spaces and braille blanks
 	# take turns - to force redraw of that text after clearing
-	printf '\r%s %s%s%s\e[m\e[%sH\e[K\e8' \
+	printf '\r%s %s%s%s\e[m\e[%sH\e[K\e[%sH' \
 	       "($((scroll+1))/$((list_total+1)))" \
 	       "$([[ $visual -eq 1 ]] && printf 'VISUAL: ')" \
 	       "${marked_files[*]:+${mark_ui}}" \
 	       "${1:-${PWD_escaped:-/}}" \
-	       "$LINES"
+	       "$LINES" \
+	       "$y"
 }
 
 read_dir() {
@@ -452,7 +450,7 @@ draw_img() {
 		}
 
 		# Wait for user input.
-		read -rs -n 99 -t 0.05 key
+		read -rs -n 1 -t 0.05 key && key="$key$(while true; do read -rs -N 1 -t 0.005 && printf '%s' "$REPLY" || break; done)"
 		# Do not break if keys are from focus lost.
 		[[ "${key::3}" == $'\e[O' ]] && ([[ ${#key} -eq 3 ]] || [[ "${key:3:1}" == $'\e' ]]) || {
 			[[ -n "$key" ]] && break
@@ -784,16 +782,14 @@ cmd_line() {
 
 	redraw # suddenly needed for trash, unsure why
 
-	# '\e7':     Save cursor position.
 	# '\e[?25h': Unhide the cursor.
 	# '\e[%sH':  Move cursor to bottom (cmd_line).
-	printf '\e7\e[%sH\e[?25h' "$LINES"
+	printf '\e[%sH\e[?25h' "$LINES"
 
 	# '\r\e[K': Redraw the read prompt on every keypress.
 	#           This is mimicking what happens normally.
 	while IFS= read -rs -n 1 -p $'\r\e[K'"${1}${cmd_reply}" read_reply; do
-		read -rs -n 99 -t 0.005 read_reply2
-		read_reply="$read_reply$read_reply2"
+		read_reply="$read_reply$(while true; do read -rs -N 1 -t 0.005 && printf '%s' "$REPLY" || break; done)"
 		case $read_reply in
 			# Backspace.
 			$'\177'|$'\b')
@@ -892,8 +888,8 @@ cmd_line() {
 
 	# '\e[2K':   Clear the entire cmd_line on finish.
 	# '\e[?25l': Hide the cursor.
-	# '\e8':     Restore cursor position.
-	printf '\e[2K\e[?25l\e8'
+	# '\e[%sH':  Restore cursor position.
+	printf '\e[2K\e[?25l\e[%sH' "$y"
 }
 
 key() {
@@ -1165,7 +1161,7 @@ key() {
 					}
 
 					# Wait for user input.
-					read -rs -n 99 -t 0.05 key
+					read -rs -n 99 -t 0.05 key && key="$key$(while true; do read -rs -N 1 -t 0.005 && printf '%s' "$REPLY" || break; done)"
 					[ -n "$key" ] && break
 
 					# Exit if there is no longer a terminal attached.
@@ -1366,9 +1362,8 @@ main() {
 
 	# Vintage infinite loop.
 	for ((;;)); {
-		read "${read_flags[@]}" -rs -n 1 key
-		read -rs -n 99 -t 0.005 key2
-		[ -n "$key$key2" ] && key "$key$key2"
+		read "${read_flags[@]}" -rs -n 1 key && key="$key$(while true; do read -rs -N 1 -t 0.005 && printf '%s' "$REPLY" || break; done)"
+		[ -n "$key" ] && key "$key"
 
 		# Exit if there is no longer a terminal attached.
 		[[ -t 1 ]] || exit 1
