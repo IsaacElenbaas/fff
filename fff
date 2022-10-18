@@ -197,7 +197,7 @@ read_dir() {
 	local item_index
 
 	# Set window name.
-	printf '\e]2;fff: %s\e'\\ "$PWD"
+	#printf '\e]2;fff: %s\e'\\ "$PWD"
 
 	# If '$PWD' is '/', unset it to avoid '//'.
 	[[ $PWD == / ]] && PWD=
@@ -624,7 +624,7 @@ duplicate() {
 			file_ext=${file_base#$file_name}
 			# find is required, printf won't work with spaces and ls has even more issues.
 			type -p "find" &>/dev/null &&
-				cp -nR "$mark_dir/$file_base" "$mark_dir/$file_name$(find $mark_dir -name "$file_name*$file_ext" | wc -l)$file_ext" 2>/dev/null
+				cp -nR "$mark_dir/$file_base" "$mark_dir/$file_name$(find $mark_dir -maxdepth 1 -name "$file_name*$file_ext" | wc -l)$file_ext" 2>/dev/null
 			# Break if something goes wrong instead of using properties of last file.
 			file_base=
 			file_name=
